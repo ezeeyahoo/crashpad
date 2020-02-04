@@ -31,8 +31,7 @@ class FakeProcessMemory : public ProcessMemory {
     VMAddress offset_in_data = address - fake_base_;
     if (offset_in_data > size_)
       return -1;
-    size_t read_size =
-        std::min(static_cast<size_t>(size_ - offset_in_data), size);
+    ssize_t read_size = std::min(size_ - offset_in_data, size);
     memcpy(buffer, &data_[offset_in_data], read_size);
     return read_size;
   }
@@ -67,7 +66,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   std::string note_desc;
   ElfImageReader::NoteReader::NoteType note_type;
   VMAddress desc_addr;
-  auto notes = reader.Notes(9999);
+  auto notes = reader.Notes(-1);
   while ((result = notes->NextNote(
               &note_name, &note_type, &note_desc, &desc_addr)) ==
          ElfImageReader::NoteReader::Result::kSuccess) {

@@ -26,8 +26,7 @@ def main(args):
     interface = mig_gen.MigInterface(parsed.user_c, parsed.server_c,
                                      parsed.user_h, parsed.server_h)
     mig_gen.generate_interface(parsed.defs, interface, parsed.include,
-                               parsed.sdk, parsed.clang_path, parsed.mig_path,
-                               parsed.migcom_path)
+                               parsed.developer_dir, parsed.sdk)
     mig_fix.fix_interface(interface)
 
 if __name__ == '__main__':

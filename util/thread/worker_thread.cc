@@ -33,9 +33,8 @@ class WorkerThreadImpl final : public Thread {
     if (initial_work_delay_ > 0)
       semaphore_.TimedWait(initial_work_delay_);
 
-    while (self_->running_ || self_->do_work_now_) {
+    while (self_->running_) {
       self_->delegate_->DoWork(self_);
-      self_->do_work_now_ = false;
       semaphore_.TimedWait(self_->work_interval_);
     }
   }
@@ -58,8 +57,7 @@ WorkerThread::WorkerThread(double work_interval,
     : work_interval_(work_interval),
       delegate_(delegate),
       impl_(),
-      running_(false),
-      do_work_now_(false) {}
+      running_(false) {}
 
 WorkerThread::~WorkerThread() {
   DCHECK(!running_);
@@ -90,7 +88,6 @@ void WorkerThread::Stop() {
 
 void WorkerThread::DoWorkNow() {
   DCHECK(running_);
-  do_work_now_ = true;
   impl_->SignalSemaphore();
 }
 

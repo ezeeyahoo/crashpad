@@ -43,7 +43,7 @@ class MemoryMap {
 
     std::string name;
     CheckedLinuxAddressRange range;
-    off64_t offset;
+    off_t offset;
     dev_t device;
     ino_t inode;
     bool readable;

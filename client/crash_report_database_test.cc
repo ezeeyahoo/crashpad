@@ -20,6 +20,7 @@
 #include "test/errors.h"
 #include "test/file.h"
 #include "test/filesystem.h"
+#include "test/gtest_disabled.h"
 #include "test/scoped_temp_dir.h"
 #include "util/file/file_io.h"
 #include "util/file/filesystem.h"
@@ -30,7 +31,8 @@ namespace {
 
 class CrashReportDatabaseTest : public testing::Test {
  public:
-  CrashReportDatabaseTest() {}
+  CrashReportDatabaseTest() {
+  }
 
  protected:
   // testing::Test:
@@ -39,7 +41,9 @@ class CrashReportDatabaseTest : public testing::Test {
     ASSERT_TRUE(db_);
   }
 
-  void ResetDatabase() { db_.reset(); }
+  void ResetDatabase() {
+    db_.reset();
+  }
 
   CrashReportDatabase* db() { return db_.get(); }
   base::FilePath path() const {
@@ -52,12 +56,6 @@ class CrashReportDatabaseTest : public testing::Test {
               CrashReportDatabase::kNoError);
     static constexpr char kTest[] = "test";
     ASSERT_TRUE(new_report->Writer()->Write(kTest, sizeof(kTest)));
-
-    char contents[sizeof(kTest)];
-    FileReaderInterface* reader = new_report->Reader();
-    ASSERT_TRUE(reader->ReadExactly(contents, sizeof(contents)));
-    EXPECT_EQ(memcmp(contents, kTest, sizeof(contents)), 0);
-    EXPECT_EQ(reader->ReadExactly(contents, 1), 0);
 
     UUID uuid;
     EXPECT_EQ(db_->FinishedWritingCrashReport(std::move(new_report), &uuid),
@@ -103,7 +101,6 @@ class CrashReportDatabaseTest : public testing::Test {
     EXPECT_EQ(report.last_upload_attempt_time, 0);
     EXPECT_EQ(report.upload_attempts, 0);
     EXPECT_FALSE(report.upload_explicitly_requested);
-    EXPECT_GE(report.total_size, 0u);
   }
 
   void RelocateDatabase() {
@@ -676,7 +673,7 @@ TEST_F(CrashReportDatabaseTest, RequestUpload) {
 TEST_F(CrashReportDatabaseTest, Attachments) {
 #if defined(OS_MACOSX) || defined(OS_WIN)
   // Attachments aren't supported on Mac and Windows yet.
-  GTEST_SKIP();
+  DISABLED_TEST();
 #else
   std::unique_ptr<CrashReportDatabase::NewReport> new_report;
   ASSERT_EQ(db()->PrepareNewCrashReport(&new_report),
@@ -722,7 +719,7 @@ TEST_F(CrashReportDatabaseTest, Attachments) {
 TEST_F(CrashReportDatabaseTest, OrphanedAttachments) {
 #if defined(OS_MACOSX) || defined(OS_WIN)
   // Attachments aren't supported on Mac and Windows yet.
-  GTEST_SKIP();
+  DISABLED_TEST();
 #else
   // TODO: This is using paths that are specific to the generic implementation
   // and will need to be generalized for Mac and Windows.
@@ -837,66 +834,6 @@ TEST_F(CrashReportDatabaseTest, CleanBrokenDatabase) {
   EXPECT_FALSE(PathExists(metadata3));
 }
 #endif  // !OS_MACOSX && !OS_WIN
-
-TEST_F(CrashReportDatabaseTest, TotalSize_MainReportOnly) {
-  std::unique_ptr<CrashReportDatabase::NewReport> new_report;
-  ASSERT_EQ(db()->PrepareNewCrashReport(&new_report),
-            CrashReportDatabase::kNoError);
-
-  // Main report.
-  static constexpr char main_report_data[] = "dlbvandslhb";
-  ASSERT_TRUE(
-      new_report->Writer()->Write(main_report_data, sizeof(main_report_data)));
-
-  UUID uuid;
-  ASSERT_EQ(db()->FinishedWritingCrashReport(std::move(new_report), &uuid),
-            CrashReportDatabase::kNoError);
-
-  CrashReportDatabase::Report report;
-  ASSERT_EQ(db()->LookUpCrashReport(uuid, &report),
-            CrashReportDatabase::kNoError);
-
-  EXPECT_EQ(report.total_size, sizeof(main_report_data));
-}
-
-TEST_F(CrashReportDatabaseTest, GetReportSize_RightSizeWithAttachments) {
-#if defined(OS_MACOSX) || defined(OS_WIN)
-  // Attachments aren't supported on Mac and Windows yet.
-  return;
-#else
-  std::unique_ptr<CrashReportDatabase::NewReport> new_report;
-  ASSERT_EQ(db()->PrepareNewCrashReport(&new_report),
-            CrashReportDatabase::kNoError);
-
-  // Main report.
-  static constexpr char main_report_data[] = "dlbvandslhb";
-  ASSERT_TRUE(
-      new_report->Writer()->Write(main_report_data, sizeof(main_report_data)));
-
-  // First attachment.
-  FileWriter* attachment_1 = new_report->AddAttachment("my_attachment_1");
-  ASSERT_NE(attachment_1, nullptr);
-  static constexpr char attachment_1_data[] = "vKDnidhvbiudshoihbvdsoiuh nhh";
-  attachment_1->Write(attachment_1_data, sizeof(attachment_1_data));
-
-  // Second attachment.
-  FileWriter* attachment_2 = new_report->AddAttachment("my_attachment_2");
-  ASSERT_NE(attachment_2, nullptr);
-  static constexpr char attachment_2_data[] = "sgvsvgusiyguysigfkhpmo-[";
-  attachment_2->Write(attachment_2_data, sizeof(attachment_2_data));
-
-  UUID uuid;
-  ASSERT_EQ(db()->FinishedWritingCrashReport(std::move(new_report), &uuid),
-            CrashReportDatabase::kNoError);
-
-  CrashReportDatabase::Report report;
-  ASSERT_EQ(db()->LookUpCrashReport(uuid, &report),
-            CrashReportDatabase::kNoError);
-  EXPECT_EQ(report.total_size,
-            sizeof(main_report_data) + sizeof(attachment_1_data) +
-                sizeof(attachment_2_data));
-#endif
-}
 
 }  // namespace
 }  // namespace test

@@ -27,8 +27,7 @@ CrashReportDatabase::Report::Report()
       uploaded(false),
       last_upload_attempt_time(0),
       upload_attempts(0),
-      upload_explicitly_requested(false),
-      total_size(0u) {}
+      upload_explicitly_requested(false) {}
 
 CrashReportDatabase::NewReport::NewReport()
     : writer_(std::make_unique<FileWriter>()),
@@ -63,15 +62,6 @@ bool CrashReportDatabase::NewReport::Initialize(
   }
   file_remover_.reset(path);
   return true;
-}
-
-FileReaderInterface* CrashReportDatabase::NewReport::Reader() {
-  auto reader = std::make_unique<FileReader>();
-  if (!reader->Open(file_remover_.get())) {
-    return nullptr;
-  }
-  reader_ = std::move(reader);
-  return reader_.get();
 }
 
 CrashReportDatabase::UploadReport::UploadReport()

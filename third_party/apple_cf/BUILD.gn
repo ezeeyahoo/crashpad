@@ -13,5 +13,7 @@
 # limitations under the License.
 
 source_set("apple_cf") {
-  sources = [ "CFStreamAbstract.h" ]
+  sources = [
+    "CFStreamAbstract.h",
+  ]
 }

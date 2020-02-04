@@ -24,7 +24,6 @@
 
 #include "snapshot/handle_snapshot.h"
 #include "util/misc/uuid.h"
-#include "util/process/process_id.h"
 
 namespace crashpad {
 
@@ -51,10 +50,10 @@ class ProcessSnapshot {
   virtual ~ProcessSnapshot() {}
 
   //! \brief Returns the snapshot process’ process ID.
-  virtual crashpad::ProcessID ProcessID() const = 0;
+  virtual pid_t ProcessID() const = 0;
 
   //! \brief Returns the snapshot process’ parent process’ process ID.
-  virtual crashpad::ProcessID ParentProcessID() const = 0;
+  virtual pid_t ParentProcessID() const = 0;
 
   //! \brief Returns the time that the snapshot was taken in \a snapshot_time.
   //!

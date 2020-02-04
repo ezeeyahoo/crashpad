@@ -126,9 +126,6 @@ class ProcessMemory {
                                    bool has_size,
                                    VMSize size,
                                    std::string* string) const;
-
-  // Allow ProcessMemorySanitized to call ReadUpTo.
-  friend class ProcessMemorySanitized;
 };
 
 }  // namespace crashpad

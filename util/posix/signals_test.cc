@@ -258,12 +258,7 @@ class SignalsTest : public Multiprocess {
   void MultiprocessChild() override {
     bool (*install_handlers)(Signals::Handler, int, Signals::OldActions*);
     if (Signals::IsCrashSignal(sig_)) {
-      install_handlers = [](Signals::Handler handler,
-                            int flags,
-                            Signals::OldActions* old_actions) {
-        return Signals::InstallCrashHandlers(
-            handler, flags, old_actions, nullptr);
-      };
+      install_handlers = Signals::InstallCrashHandlers;
     } else if (Signals::IsTerminateSignal(sig_)) {
       install_handlers = Signals::InstallTerminateHandlers;
     } else {

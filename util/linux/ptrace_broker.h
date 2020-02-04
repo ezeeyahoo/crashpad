@@ -146,7 +146,7 @@ class PtraceBroker {
     ThreadInfo info;
 
     //! \brief Specifies the success or failure of this call.
-    ExceptionHandlerProtocol::Bool success;
+    Bool success;
   };
 #pragma pack(pop)
 
@@ -196,7 +196,7 @@ class PtraceBroker {
   bool AllocateAttachments();
   void ReleaseAttachments();
   int RunImpl();
-  int SendError(ExceptionHandlerProtocol::Errno err);
+  int SendError(Errno err);
   int SendReadError(ReadError err);
   int SendOpenResult(OpenResult result);
   int SendFileContents(FileHandle handle);

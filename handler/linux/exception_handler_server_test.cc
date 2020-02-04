@@ -18,9 +18,7 @@
 #include <unistd.h>
 
 #include "base/logging.h"
-#include "build/build_config.h"
 #include "gtest/gtest.h"
-#include "snapshot/linux/process_snapshot_linux.h"
 #include "test/errors.h"
 #include "test/multiprocess.h"
 #include "util/linux/direct_ptrace_connection.h"
@@ -30,10 +28,6 @@
 #include "util/misc/uuid.h"
 #include "util/synchronization/semaphore.h"
 #include "util/thread/thread.h"
-
-#if defined(OS_ANDROID)
-#include <android/api-level.h>
-#endif
 
 namespace crashpad {
 namespace test {
@@ -108,10 +102,7 @@ class TestDelegate : public ExceptionHandlerServer::Delegate {
   }
 
   bool HandleException(pid_t client_process_id,
-                       uid_t client_uid,
-                       const ExceptionHandlerProtocol::ClientInformation& info,
-                       VMAddress requesting_thread_stack_address,
-                       pid_t* requesting_thread_id = nullptr,
+                       const ClientInformation& info,
                        UUID* local_report_id = nullptr) override {
     DirectPtraceConnection connection;
     bool connected = connection.Initialize(client_process_id);
@@ -120,32 +111,13 @@ class TestDelegate : public ExceptionHandlerServer::Delegate {
     last_exception_address_ = info.exception_information_address;
     last_client_ = client_process_id;
     sem_.Signal();
-    if (!connected) {
-      return false;
-    }
-
-    if (requesting_thread_id) {
-      if (requesting_thread_stack_address) {
-        ProcessSnapshotLinux process_snapshot;
-        if (!process_snapshot.Initialize(&connection)) {
-          ADD_FAILURE();
-          return false;
-        }
-        *requesting_thread_id = process_snapshot.FindThreadWithStackAddress(
-            requesting_thread_stack_address);
-      } else {
-        *requesting_thread_id = -1;
-      }
-    }
-    return true;
+    return connected;
   }
 
-  bool HandleExceptionWithBroker(
-      pid_t client_process_id,
-      uid_t client_uid,
-      const ExceptionHandlerProtocol::ClientInformation& info,
-      int broker_sock,
-      UUID* local_report_id = nullptr) override {
+  bool HandleExceptionWithBroker(pid_t client_process_id,
+                                 const ClientInformation& info,
+                                 int broker_sock,
+                                 UUID* local_report_id = nullptr) override {
     PtraceClient client;
     bool connected = client.Initialize(broker_sock, client_process_id);
     EXPECT_TRUE(connected);
@@ -171,15 +143,12 @@ class MockPtraceStrategyDecider : public PtraceStrategyDecider {
 
   ~MockPtraceStrategyDecider() {}
 
-  Strategy ChooseStrategy(int sock,
-                          bool multiple_clients,
-                          const ucred& client_credentials) override {
+  Strategy ChooseStrategy(int sock, const ucred& client_credentials) override {
     if (strategy_ == Strategy::kUseBroker) {
-      ExceptionHandlerProtocol::ServerToClientMessage message = {};
-      message.type =
-          ExceptionHandlerProtocol::ServerToClientMessage::kTypeForkBroker;
+      ServerToClientMessage message = {};
+      message.type = ServerToClientMessage::kTypeForkBroker;
 
-      ExceptionHandlerProtocol::Errno status;
+      Errno status;
       bool result = LoggingWriteFile(sock, &message, sizeof(message)) &&
                     LoggingReadFileExactly(sock, &status, sizeof(status));
       EXPECT_TRUE(result);
@@ -203,14 +172,13 @@ class MockPtraceStrategyDecider : public PtraceStrategyDecider {
   DISALLOW_COPY_AND_ASSIGN(MockPtraceStrategyDecider);
 };
 
-class ExceptionHandlerServerTest : public testing::TestWithParam<bool> {
+class ExceptionHandlerServerTest : public testing::Test {
  public:
   ExceptionHandlerServerTest()
       : server_(),
         delegate_(),
         server_thread_(&server_, &delegate_),
-        sock_to_handler_(),
-        use_multi_client_socket_(GetParam()) {}
+        sock_to_handler_() {}
 
   ~ExceptionHandlerServerTest() = default;
 
@@ -232,7 +200,7 @@ class ExceptionHandlerServerTest : public testing::TestWithParam<bool> {
     ~CrashDumpTest() = default;
 
     void MultiprocessParent() override {
-      ExceptionHandlerProtocol::ClientInformation info;
+      ClientInformation info;
       ASSERT_TRUE(
           LoggingReadFileExactly(ReadPipeHandle(), &info, sizeof(info)));
 
@@ -251,8 +219,9 @@ class ExceptionHandlerServerTest : public testing::TestWithParam<bool> {
     void MultiprocessChild() override {
       ASSERT_EQ(close(server_test_->sock_to_client_), 0);
 
-      ExceptionHandlerProtocol::ClientInformation info;
+      ClientInformation info;
       info.exception_information_address = 42;
+
       ASSERT_TRUE(LoggingWriteFile(WritePipeHandle(), &info, sizeof(info)));
 
       // If the current ptrace_scope is restricted, the broker needs to be set
@@ -260,8 +229,7 @@ class ExceptionHandlerServerTest : public testing::TestWithParam<bool> {
       // ptracer allows the broker to inherit this condition.
       ScopedPrSetPtracer set_ptracer(getpid(), /* may_log= */ true);
 
-      ExceptionHandlerClient client(server_test_->SockToHandler(),
-                                    server_test_->use_multi_client_socket_);
+      ExceptionHandlerClient client(server_test_->SockToHandler());
       ASSERT_EQ(client.RequestCrashDump(info), 0);
     }
 
@@ -274,17 +242,15 @@ class ExceptionHandlerServerTest : public testing::TestWithParam<bool> {
 
   void ExpectCrashDumpUsingStrategy(PtraceStrategyDecider::Strategy strategy,
                                     bool succeeds) {
-    Server()->SetPtraceStrategyDecider(
-        std::make_unique<MockPtraceStrategyDecider>(strategy));
-
     ScopedStopServerAndJoinThread stop_server(Server(), ServerThread());
     ServerThread()->Start();
+
+    Server()->SetPtraceStrategyDecider(
+        std::make_unique<MockPtraceStrategyDecider>(strategy));
 
     CrashDumpTest test(this, succeeds);
     test.Run();
   }
-
-  bool UsingMultiClientSocket() const { return use_multi_client_socket_; }
 
  protected:
   void SetUp() override {
@@ -293,8 +259,7 @@ class ExceptionHandlerServerTest : public testing::TestWithParam<bool> {
     sock_to_handler_.reset(socks[0]);
     sock_to_client_ = socks[1];
 
-    ASSERT_TRUE(server_.InitializeWithClient(ScopedFileHandle(socks[1]),
-                                             use_multi_client_socket_));
+    ASSERT_TRUE(server_.InitializeWithClient(ScopedFileHandle(socks[1])));
   }
 
  private:
@@ -303,37 +268,36 @@ class ExceptionHandlerServerTest : public testing::TestWithParam<bool> {
   RunServerThread server_thread_;
   ScopedFileHandle sock_to_handler_;
   int sock_to_client_;
-  bool use_multi_client_socket_;
 
   DISALLOW_COPY_AND_ASSIGN(ExceptionHandlerServerTest);
 };
 
-TEST_P(ExceptionHandlerServerTest, ShutdownWithNoClients) {
+TEST_F(ExceptionHandlerServerTest, ShutdownWithNoClients) {
   ServerThread()->Start();
   Hangup();
   ASSERT_TRUE(ServerThread()->JoinWithTimeout(5.0));
 }
 
-TEST_P(ExceptionHandlerServerTest, StopWithClients) {
+TEST_F(ExceptionHandlerServerTest, StopWithClients) {
   ServerThread()->Start();
   Server()->Stop();
   ASSERT_TRUE(ServerThread()->JoinWithTimeout(5.0));
 }
 
-TEST_P(ExceptionHandlerServerTest, StopBeforeRun) {
+TEST_F(ExceptionHandlerServerTest, StopBeforeRun) {
   Server()->Stop();
   ServerThread()->Start();
   ASSERT_TRUE(ServerThread()->JoinWithTimeout(5.0));
 }
 
-TEST_P(ExceptionHandlerServerTest, MultipleStops) {
+TEST_F(ExceptionHandlerServerTest, MultipleStops) {
   ServerThread()->Start();
   Server()->Stop();
   Server()->Stop();
   ASSERT_TRUE(ServerThread()->JoinWithTimeout(5.0));
 }
 
-TEST_P(ExceptionHandlerServerTest, RequestCrashDumpDefault) {
+TEST_F(ExceptionHandlerServerTest, RequestCrashDumpDefault) {
   ScopedStopServerAndJoinThread stop_server(Server(), ServerThread());
   ServerThread()->Start();
 
@@ -341,34 +305,24 @@ TEST_P(ExceptionHandlerServerTest, RequestCrashDumpDefault) {
   test.Run();
 }
 
-TEST_P(ExceptionHandlerServerTest, RequestCrashDumpNoPtrace) {
+TEST_F(ExceptionHandlerServerTest, RequestCrashDumpNoPtrace) {
   ExpectCrashDumpUsingStrategy(PtraceStrategyDecider::Strategy::kNoPtrace,
                                false);
 }
 
-TEST_P(ExceptionHandlerServerTest, RequestCrashDumpForkBroker) {
-  if (UsingMultiClientSocket()) {
-    // The broker is not supported with multiple clients connected on a single
-    // socket.
-    return;
-  }
+TEST_F(ExceptionHandlerServerTest, RequestCrashDumpForkBroker) {
   ExpectCrashDumpUsingStrategy(PtraceStrategyDecider::Strategy::kUseBroker,
                                true);
 }
 
-TEST_P(ExceptionHandlerServerTest, RequestCrashDumpDirectPtrace) {
+TEST_F(ExceptionHandlerServerTest, RequestCrashDumpDirectPtrace) {
   ExpectCrashDumpUsingStrategy(PtraceStrategyDecider::Strategy::kDirectPtrace,
                                true);
 }
 
-TEST_P(ExceptionHandlerServerTest, RequestCrashDumpError) {
+TEST_F(ExceptionHandlerServerTest, RequestCrashDumpError) {
   ExpectCrashDumpUsingStrategy(PtraceStrategyDecider::Strategy::kError, false);
 }
-
-INSTANTIATE_TEST_SUITE_P(ExceptionHandlerServerTestSuite,
-                         ExceptionHandlerServerTest,
-                         testing::Bool()
-);
 
 }  // namespace
 }  // namespace test

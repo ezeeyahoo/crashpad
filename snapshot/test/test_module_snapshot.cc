@@ -30,9 +30,11 @@ TestModuleSnapshot::TestModuleSnapshot()
       debug_file_name_(),
       annotations_vector_(),
       annotations_simple_map_(),
-      extra_memory_ranges_() {}
+      extra_memory_ranges_() {
+}
 
-TestModuleSnapshot::~TestModuleSnapshot() {}
+TestModuleSnapshot::~TestModuleSnapshot() {
+}
 
 std::string TestModuleSnapshot::Name() const {
   return name_;
@@ -81,10 +83,6 @@ void TestModuleSnapshot::UUIDAndAge(crashpad::UUID* uuid, uint32_t* age) const {
 
 std::string TestModuleSnapshot::DebugFileName() const {
   return debug_file_name_;
-}
-
-std::vector<uint8_t> TestModuleSnapshot::BuildID() const {
-  return build_id_;
 }
 
 std::vector<std::string> TestModuleSnapshot::AnnotationsVector() const {

@@ -123,12 +123,12 @@ void ProcessSnapshotWin::GetCrashpadOptions(
   *options = options_;
 }
 
-crashpad::ProcessID ProcessSnapshotWin::ProcessID() const {
+pid_t ProcessSnapshotWin::ProcessID() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   return process_reader_.GetProcessInfo().ProcessID();
 }
 
-crashpad::ProcessID ProcessSnapshotWin::ParentProcessID() const {
+pid_t ProcessSnapshotWin::ParentProcessID() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   return process_reader_.GetProcessInfo().ParentProcessID();
 }
@@ -459,7 +459,7 @@ void ProcessSnapshotWin::InitializePebData(
 void ProcessSnapshotWin::AddMemorySnapshot(
     WinVMAddress address,
     WinVMSize size,
-    std::vector<std::unique_ptr<internal::MemorySnapshotGeneric>>* into) {
+    std::vector<std::unique_ptr<internal::MemorySnapshotWin>>* into) {
   if (size == 0)
     return;
 
@@ -480,14 +480,14 @@ void ProcessSnapshotWin::AddMemorySnapshot(
     }
   }
 
-  into->push_back(std::make_unique<internal::MemorySnapshotGeneric>());
-  into->back()->Initialize(process_reader_.Memory(), address, size);
+  into->push_back(std::make_unique<internal::MemorySnapshotWin>());
+  into->back()->Initialize(&process_reader_, address, size);
 }
 
 template <class Traits>
 void ProcessSnapshotWin::AddMemorySnapshotForUNICODE_STRING(
     const process_types::UNICODE_STRING<Traits>& us,
-    std::vector<std::unique_ptr<internal::MemorySnapshotGeneric>>* into) {
+    std::vector<std::unique_ptr<internal::MemorySnapshotWin>>* into) {
   AddMemorySnapshot(us.Buffer, us.Length, into);
 }
 
@@ -495,7 +495,7 @@ template <class Traits>
 void ProcessSnapshotWin::AddMemorySnapshotForLdrLIST_ENTRY(
     const process_types::LIST_ENTRY<Traits>& le,
     size_t offset_of_member,
-    std::vector<std::unique_ptr<internal::MemorySnapshotGeneric>>* into) {
+    std::vector<std::unique_ptr<internal::MemorySnapshotWin>>* into) {
   // Walk the doubly-linked list of entries, adding the list memory itself, as
   // well as pointed-to strings.
   typename Traits::Pointer last = le.Blink;
@@ -545,7 +545,7 @@ WinVMSize ProcessSnapshotWin::DetermineSizeOfEnvironmentBlock(
 template <class Traits>
 void ProcessSnapshotWin::ReadLock(
     WinVMAddress start,
-    std::vector<std::unique_ptr<internal::MemorySnapshotGeneric>>* into) {
+    std::vector<std::unique_ptr<internal::MemorySnapshotWin>>* into) {
   // We're walking the RTL_CRITICAL_SECTION_DEBUG ProcessLocksList, but starting
   // from an actual RTL_CRITICAL_SECTION, so start by getting to the first
   // RTL_CRITICAL_SECTION_DEBUG.

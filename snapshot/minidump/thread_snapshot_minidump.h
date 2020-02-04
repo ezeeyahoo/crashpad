@@ -20,7 +20,6 @@
 #include "minidump/minidump_extensions.h"
 #include "snapshot/cpu_context.h"
 #include "snapshot/minidump/memory_snapshot_minidump.h"
-#include "snapshot/minidump/minidump_context_converter.h"
 #include "snapshot/thread_snapshot.h"
 #include "util/file/file_reader.h"
 #include "util/misc/initialization_state_dcheck.h"
@@ -45,8 +44,7 @@ class ThreadSnapshotMinidump : public ThreadSnapshot {
   //!
   //! \return `true` if the snapshot could be created, `false` otherwise with
   //!     an appropriate message logged.
-  bool Initialize(FileReaderInterface* file_reader,
-                  RVA minidump_thread_rva,
+  bool Initialize(FileReaderInterface* file_reader, RVA minidump_thread_rva,
                   CPUArchitecture arch);
 
   const CPUContext* Context() const override;
@@ -67,7 +65,8 @@ class ThreadSnapshotMinidump : public ThreadSnapshot {
   bool InitializeContext(const std::vector<unsigned char>& minidump_context);
 
   MINIDUMP_THREAD minidump_thread_;
-  MinidumpContextConverter context_;
+  CPUContext context_;
+  std::vector<unsigned char> context_memory_;
   MemorySnapshotMinidump stack_;
   InitializationStateDcheck initialized_;
 

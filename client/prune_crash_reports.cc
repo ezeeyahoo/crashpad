@@ -15,7 +15,6 @@
 #include "client/prune_crash_reports.h"
 
 #include <sys/stat.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <vector>
@@ -25,7 +24,7 @@
 
 namespace crashpad {
 
-size_t PruneCrashReportDatabase(CrashReportDatabase* database,
+void PruneCrashReportDatabase(CrashReportDatabase* database,
                               PruneCondition* condition) {
   std::vector<CrashReportDatabase::Report> all_reports;
   CrashReportDatabase::OperationStatus status;
@@ -33,14 +32,14 @@ size_t PruneCrashReportDatabase(CrashReportDatabase* database,
   status = database->GetPendingReports(&all_reports);
   if (status != CrashReportDatabase::kNoError) {
     LOG(ERROR) << "PruneCrashReportDatabase: Failed to get pending reports";
-    return 0;
+    return;
   }
 
   std::vector<CrashReportDatabase::Report> completed_reports;
   status = database->GetCompletedReports(&completed_reports);
   if (status != CrashReportDatabase::kNoError) {
     LOG(ERROR) << "PruneCrashReportDatabase: Failed to get completed reports";
-    return 0;
+    return;
   }
   all_reports.insert(all_reports.end(), completed_reports.begin(),
                      completed_reports.end());
@@ -51,20 +50,15 @@ size_t PruneCrashReportDatabase(CrashReportDatabase* database,
         return lhs.creation_time > rhs.creation_time;
       });
 
-  size_t num_pruned = 0;
   for (const auto& report : all_reports) {
     if (condition->ShouldPruneReport(report)) {
       status = database->DeleteReport(report.uuid);
       if (status != CrashReportDatabase::kNoError) {
         LOG(ERROR) << "Database Pruning: Failed to remove report "
                    << report.uuid.ToString();
-      } else {
-        num_pruned++;
       }
     }
   }
-
-  return num_pruned;
 
   // TODO(rsesek): For databases that do not use a directory structure, it is
   // possible for the metadata sidecar to become corrupted and thus leave
@@ -102,9 +96,19 @@ DatabaseSizePruneCondition::~DatabaseSizePruneCondition() {}
 
 bool DatabaseSizePruneCondition::ShouldPruneReport(
     const CrashReportDatabase::Report& report) {
-  // Round up fractional KB to the next 1-KB boundary.
-  measured_size_in_kb_ +=
-      static_cast<size_t>((report.total_size + 1023) / 1024);
+#if defined(OS_POSIX)
+  struct stat statbuf;
+  if (stat(report.file_path.value().c_str(), &statbuf) == 0) {
+#elif defined(OS_WIN)
+  struct _stati64 statbuf;
+  if (_wstat64(report.file_path.value().c_str(), &statbuf) == 0) {
+#else
+#error "Not implemented"
+#endif
+    // Round up fractional KB to the next 1-KB boundary.
+    measured_size_in_kb_ +=
+        static_cast<size_t>((statbuf.st_size + 1023) / 1024);
+  }
   return measured_size_in_kb_ > max_size_in_kb_;
 }
 

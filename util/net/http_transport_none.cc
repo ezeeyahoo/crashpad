@@ -1,4 +1,4 @@
-// Copyright 2019 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,34 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "util/stream/file_output_stream.h"
+#include "util/net/http_transport.h"
 
 #include "base/logging.h"
 
 namespace crashpad {
 
-FileOutputStream::FileOutputStream(FileHandle file_handle)
-    : writer_(file_handle), flush_needed_(false), flushed_(false) {}
-
-FileOutputStream::~FileOutputStream() {
-  DCHECK(!flush_needed_);
-}
-
-bool FileOutputStream::Write(const uint8_t* data, size_t size) {
-  DCHECK(!flushed_);
-
-  if (!writer_.Write(data, size)) {
-    LOG(ERROR) << "Write: Failed";
-    return false;
-  }
-  flush_needed_ = true;
-  return true;
-}
-
-bool FileOutputStream::Flush() {
-  flush_needed_ = false;
-  flushed_ = true;
-  return true;
+std::unique_ptr<HTTPTransport> HTTPTransport::Create() {
+  NOTREACHED();  // TODO(scottmg): https://crashpad.chromium.org/bug/196
+  return std::unique_ptr<HTTPTransport>();
 }
 
 }  // namespace crashpad

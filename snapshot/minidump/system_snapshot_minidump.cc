@@ -20,17 +20,17 @@ namespace crashpad {
 namespace internal {
 
 SystemSnapshotMinidump::SystemSnapshotMinidump()
-    : SystemSnapshot(), minidump_system_info_(), initialized_() {}
+    : SystemSnapshot(),
+      minidump_system_info_(),
+      initialized_() {
+}
 
-SystemSnapshotMinidump::~SystemSnapshotMinidump() {}
+SystemSnapshotMinidump::~SystemSnapshotMinidump() {
+}
 
 bool SystemSnapshotMinidump::Initialize(FileReaderInterface* file_reader,
-                                        RVA minidump_system_info_rva,
-                                        const std::string& version) {
+                                        RVA minidump_system_info_rva) {
   INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
-
-  full_version_ = version;
-
   if (!file_reader->SeekSet(minidump_system_info_rva)) {
     return false;
   }
@@ -40,8 +40,7 @@ bool SystemSnapshotMinidump::Initialize(FileReaderInterface* file_reader,
     return false;
   }
 
-  if (!ReadMinidumpUTF8String(file_reader,
-                              minidump_system_info_.CSDVersionRva,
+  if (!ReadMinidumpUTF8String(file_reader, minidump_system_info_.CSDVersionRva,
                               &minidump_build_name_)) {
     return false;
   }
@@ -53,23 +52,23 @@ bool SystemSnapshotMinidump::Initialize(FileReaderInterface* file_reader,
 CPUArchitecture SystemSnapshotMinidump::GetCPUArchitecture() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   switch (minidump_system_info_.ProcessorArchitecture) {
-    case kMinidumpCPUArchitectureAMD64:
-      return kCPUArchitectureX86_64;
-    case kMinidumpCPUArchitectureX86:
-    case kMinidumpCPUArchitectureX86Win64:
-      return kCPUArchitectureX86;
-    case kMinidumpCPUArchitectureARM:
-    case kMinidumpCPUArchitectureARM32Win64:
-      return kCPUArchitectureARM;
-    case kMinidumpCPUArchitectureARM64:
-    case kMinidumpCPUArchitectureARM64Breakpad:
-      return kCPUArchitectureARM64;
-    case kMinidumpCPUArchitectureMIPS:
-      return kCPUArchitectureMIPSEL;
-    // No word on how MIPS64 is signalled
+  case kMinidumpCPUArchitectureAMD64:
+    return kCPUArchitectureX86_64;
+  case kMinidumpCPUArchitectureX86:
+  case kMinidumpCPUArchitectureX86Win64:
+    return kCPUArchitectureX86;
+  case kMinidumpCPUArchitectureARM:
+  case kMinidumpCPUArchitectureARM32Win64:
+    return kCPUArchitectureARM;
+  case kMinidumpCPUArchitectureARM64:
+  case kMinidumpCPUArchitectureARM64Breakpad:
+    return kCPUArchitectureARM64;
+  case kMinidumpCPUArchitectureMIPS:
+    return kCPUArchitectureMIPSEL;
+  // No word on how MIPS64 is signalled
 
-    default:
-      return CPUArchitecture::kCPUArchitectureUnknown;
+  default:
+    return CPUArchitecture::kCPUArchitectureUnknown;
   }
 }
 
@@ -86,8 +85,9 @@ uint8_t SystemSnapshotMinidump::CPUCount() const {
 std::string SystemSnapshotMinidump::CPUVendor() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   if (GetCPUArchitecture() == kCPUArchitectureX86) {
-    const char* ptr = reinterpret_cast<const char*>(
-        minidump_system_info_.Cpu.X86CpuInfo.VendorId);
+    const char* ptr =
+      reinterpret_cast<const char*>(minidump_system_info_.Cpu.X86CpuInfo.
+                                    VendorId);
     return std::string(ptr, ptr + (3 * sizeof(uint32_t)));
   } else {
     return std::string();
@@ -130,25 +130,25 @@ bool SystemSnapshotMinidump::CPUX86SupportsDAZ() const {
   return false;
 }
 
-SystemSnapshot::OperatingSystem SystemSnapshotMinidump::GetOperatingSystem()
-    const {
+SystemSnapshot::OperatingSystem
+    SystemSnapshotMinidump::GetOperatingSystem() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
 
   switch (minidump_system_info_.PlatformId) {
-    case kMinidumpOSMacOSX:
-      return OperatingSystem::kOperatingSystemMacOSX;
-    case kMinidumpOSWin32s:
-    case kMinidumpOSWin32Windows:
-    case kMinidumpOSWin32NT:
-      return OperatingSystem::kOperatingSystemWindows;
-    case kMinidumpOSLinux:
-      return OperatingSystem::kOperatingSystemLinux;
-    case kMinidumpOSAndroid:
-      return OperatingSystem::kOperatingSystemAndroid;
-    case kMinidumpOSFuchsia:
-      return OperatingSystem::kOperatingSystemFuchsia;
-    default:
-      return OperatingSystem::kOperatingSystemUnknown;
+  case kMinidumpOSMacOSX:
+    return OperatingSystem::kOperatingSystemMacOSX;
+  case kMinidumpOSWin32s:
+  case kMinidumpOSWin32Windows:
+  case kMinidumpOSWin32NT:
+    return OperatingSystem::kOperatingSystemWindows;
+  case kMinidumpOSLinux:
+    return OperatingSystem::kOperatingSystemLinux;
+  case kMinidumpOSAndroid:
+    return OperatingSystem::kOperatingSystemAndroid;
+  case kMinidumpOSFuchsia:
+    return OperatingSystem::kOperatingSystemFuchsia;
+  default:
+    return OperatingSystem::kOperatingSystemUnknown;
   }
 }
 
@@ -170,7 +170,8 @@ void SystemSnapshotMinidump::OSVersion(int* major,
 
 std::string SystemSnapshotMinidump::OSVersionFull() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
-  return full_version_;
+  NOTREACHED();  // https://crashpad.chromium.org/bug/10
+  return std::string();
 }
 
 std::string SystemSnapshotMinidump::MachineDescription() const {

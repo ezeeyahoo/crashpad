@@ -14,74 +14,44 @@
 
 #include "handler/fuchsia/exception_handler_server.h"
 
-#include <lib/zx/exception.h>
 #include <lib/zx/time.h>
-#include <zircon/syscalls/exception.h>
+#include <zircon/syscalls/port.h>
 
 #include <utility>
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/logging.h"
 #include "handler/fuchsia/crash_report_exception_handler.h"
+#include "util/fuchsia/system_exception_port_key.h"
 
 namespace crashpad {
 
 ExceptionHandlerServer::ExceptionHandlerServer(zx::job root_job,
-                                               zx::channel exception_channel)
+                                               zx::port exception_port)
     : root_job_(std::move(root_job)),
-      exception_channel_(std::move(exception_channel)) {}
+      exception_port_(std::move(exception_port)) {}
 
 ExceptionHandlerServer::~ExceptionHandlerServer() = default;
 
 void ExceptionHandlerServer::Run(CrashReportExceptionHandler* handler) {
   while (true) {
-    zx_signals_t signals;
-    zx_status_t status = exception_channel_.wait_one(
-        ZX_CHANNEL_READABLE | ZX_CHANNEL_PEER_CLOSED,
-        zx::time::infinite(),
-        &signals);
+    zx_port_packet_t packet;
+    zx_status_t status = exception_port_.wait(zx::time::infinite(), &packet);
     if (status != ZX_OK) {
       ZX_LOG(ERROR, status) << "zx_port_wait, aborting";
       return;
     }
 
-    if (signals & ZX_CHANNEL_READABLE) {
-      zx_exception_info_t info;
-      zx::exception exception;
-      status = exception_channel_.read(0,
-                                       &info,
-                                       exception.reset_and_get_address(),
-                                       sizeof(info),
-                                       1,
-                                       nullptr,
-                                       nullptr);
-      if (status != ZX_OK) {
-        ZX_LOG(ERROR, status) << "zx_channel_read, aborting";
-        return;
-      }
+    if (packet.key != kSystemExceptionPortKey) {
+      LOG(ERROR) << "unexpected packet key, ignoring";
+      continue;
+    }
 
-      zx::process process;
-      status = exception.get_process(&process);
-      if (status != ZX_OK) {
-        ZX_LOG(ERROR, status) << "zx_exception_get_process, aborting";
-        return;
-      }
-
-      zx::thread thread;
-      status = exception.get_thread(&thread);
-      if (status != ZX_OK) {
-        ZX_LOG(ERROR, status) << "zx_exception_get_thread, aborting";
-        return;
-      }
-
-      bool result =
-          handler->HandleException(std::move(process), std::move(thread));
-      if (!result) {
-        LOG(ERROR) << "HandleException failed";
-      }
-    } else {
-      // Job terminated, exit the loop.
-      return;
+    bool result = handler->HandleException(packet.exception.pid,
+                                           packet.exception.tid,
+                                           zx::unowned_port(exception_port_));
+    if (!result) {
+      LOG(ERROR) << "HandleException failed";
     }
   }
 }

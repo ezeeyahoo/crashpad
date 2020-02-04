@@ -16,24 +16,23 @@
 #define CRASHPAD_COMPAT_ANDROID_ANDROID_API_LEVEL_H_
 
 #include_next <android/api-level.h>
-#include <android/ndk-version.h>
 
 #include <sys/cdefs.h>
 
-#if __NDK_MAJOR__ < 20
+#if __ANDROID_API__ < 29
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Returns the API level of the device or -1 if it can't be determined. This
-// function is provided by NDK r20.
+// function is provided by Bionic at API 29.
 int android_get_device_api_level();
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // __NDK_MAJOR__ < 20
+#endif  // __ANDROID_API__ < 29
 
 #endif  // CRASHPAD_COMPAT_ANDROID_ANDROID_API_LEVEL_H_

@@ -70,7 +70,7 @@ class ThreadSnapshotMac final : public ThreadSnapshot {
   } context_union_;
 #endif
   CPUContext context_;
-  MemorySnapshotGeneric stack_;
+  MemorySnapshotGeneric<ProcessReaderMac> stack_;
   uint64_t thread_id_;
   uint64_t thread_specific_data_address_;
   thread_t thread_;

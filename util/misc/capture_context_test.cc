@@ -18,11 +18,9 @@
 
 #include <algorithm>
 
-#include "build/build_config.h"
 #include "gtest/gtest.h"
 #include "util/misc/address_sanitizer.h"
 #include "util/misc/capture_context_test_util.h"
-#include "util/misc/memory_sanitizer.h"
 
 namespace crashpad {
 namespace test {
@@ -35,12 +33,7 @@ namespace {
 // find an approximately valid stack pointer by comparing locals to the
 // captured one, disable safe-stack for this function.
 __attribute__((no_sanitize("safe-stack")))
-#endif  // defined(OS_FUCHSIA)
-
-#if defined(MEMORY_SANITIZER)
-// CaptureContext() calls inline assembly and is incompatible with MSan.
-__attribute__((no_sanitize("memory")))
-#endif  // defined(MEMORY_SANITIZER)
+#endif
 
 void TestCaptureContext() {
   NativeCPUContext context_1;
@@ -56,9 +49,8 @@ void TestCaptureContext() {
   // reference program counter.
   uintptr_t pc = ProgramCounterFromContext(context_1);
 
-#if !defined(ADDRESS_SANITIZER) && !defined(ARCH_CPU_MIPS_FAMILY) && \
-    !defined(MEMORY_SANITIZER)
-  // Sanitizers can cause enough code bloat that the “nearby” check would
+#if !defined(ADDRESS_SANITIZER) && !defined(ARCH_CPU_MIPS_FAMILY)
+  // AddressSanitizer can cause enough code bloat that the “nearby” check would
   // likely fail.
   const uintptr_t kReferencePC =
       reinterpret_cast<uintptr_t>(TestCaptureContext);
@@ -66,7 +58,7 @@ void TestCaptureContext() {
                   uintptr_t reference) { return actual - reference < 128u; },
                pc,
                kReferencePC);
-#endif
+#endif  // !defined(ADDRESS_SANITIZER)
 
   const uintptr_t sp = StackPointerFromContext(context_1);
 
@@ -90,7 +82,7 @@ void TestCaptureContext() {
                   uintptr_t reference) { return reference - actual < 768u; },
                sp,
                kReferenceSP);
-#endif  // !defined(ADDRESS_SANITIZER)
+#endif  // !ADDRESS_SANITIZER
 
   // Capture the context again, expecting that the stack pointer stays the same
   // and the program counter increases. Strictly speaking, there’s no guarantee

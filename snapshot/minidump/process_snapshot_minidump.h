@@ -29,7 +29,6 @@
 #include "minidump/minidump_extensions.h"
 #include "snapshot/exception_snapshot.h"
 #include "snapshot/memory_snapshot.h"
-#include "snapshot/minidump/exception_snapshot_minidump.h"
 #include "snapshot/minidump/minidump_stream.h"
 #include "snapshot/minidump/module_snapshot_minidump.h"
 #include "snapshot/minidump/system_snapshot_minidump.h"
@@ -42,7 +41,6 @@
 #include "util/file/file_reader.h"
 #include "util/misc/initialization_state_dcheck.h"
 #include "util/misc/uuid.h"
-#include "util/process/process_id.h"
 
 namespace crashpad {
 
@@ -67,8 +65,8 @@ class ProcessSnapshotMinidump final : public ProcessSnapshot {
 
   // ProcessSnapshot:
 
-  crashpad::ProcessID ProcessID() const override;
-  crashpad::ProcessID ParentProcessID() const override;
+  pid_t ProcessID() const override;
+  pid_t ParentProcessID() const override;
   void SnapshotTime(timeval* snapshot_time) const override;
   void ProcessStartTime(timeval* start_time) const override;
   void ProcessCPUTimes(timeval* user_time, timeval* system_time) const override;
@@ -131,10 +129,6 @@ class ProcessSnapshotMinidump final : public ProcessSnapshot {
   // Initializes custom minidump streams.
   bool InitializeCustomMinidumpStreams();
 
-  // Initializes data carried in a MINIDUMP_EXCEPTION_STREAM stream on behalf of
-  // Initialize().
-  bool InitializeExceptionSnapshot();
-
   MINIDUMP_HEADER header_;
   std::vector<MINIDUMP_DIRECTORY> stream_directory_;
   std::map<MinidumpStreamType, const MINIDUMP_LOCATION_DESCRIPTOR*> stream_map_;
@@ -147,15 +141,10 @@ class ProcessSnapshotMinidump final : public ProcessSnapshot {
   std::vector<std::unique_ptr<MinidumpStream>> custom_streams_;
   MinidumpCrashpadInfo crashpad_info_;
   internal::SystemSnapshotMinidump system_snapshot_;
-  internal::ExceptionSnapshotMinidump exception_snapshot_;
   CPUArchitecture arch_;
   std::map<std::string, std::string> annotations_simple_map_;
-  std::string full_version_;
   FileReaderInterface* file_reader_;  // weak
-  crashpad::ProcessID process_id_;
-  uint32_t create_time_;
-  uint32_t user_time_;
-  uint32_t kernel_time_;
+  pid_t process_id_;
   InitializationStateDcheck initialized_;
 
   DISALLOW_COPY_AND_ASSIGN(ProcessSnapshotMinidump);
