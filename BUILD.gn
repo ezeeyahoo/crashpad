@@ -20,13 +20,23 @@ config("crashpad_config") {
   include_dirs = [ "." ]
 }
 
+# TODO(fuchsia:46805): Remove this once instances of UB have been cleaned up.
+config("disable_ubsan") {
+  if (crashpad_is_in_fuchsia) {
+    cflags = [ "-fno-sanitize=undefined" ]
+  }
+  visibility = [
+    "snapshot:snapshot",
+    "minidump:minidump_test",
+    "third_party/gtest:gtest",
+    "util:util",
+  ]
+}
+
 if (crashpad_is_in_chromium || crashpad_is_in_fuchsia) {
   test("crashpad_tests") {
     deps = [
       "client:client_test",
-      "handler:handler_test",
-      "minidump:minidump_test",
-      "snapshot:snapshot_test",
       "test:gmock_main",
       "test:test_test",
       "util:util_test",
@@ -118,9 +128,7 @@ if (crashpad_is_in_chromium || crashpad_is_in_fuchsia) {
     }
 
     package("crashpad_database_util") {
-      deps = [
-        "tools:crashpad_database_util",
-      ]
+      deps = [ "tools:crashpad_database_util" ]
 
       binaries = [
         {

@@ -131,10 +131,6 @@ source_set("client_test") {
     "../util",
   ]
 
-  data_deps = [
-    "../handler:crashpad_handler",
-  ]
-
   if (crashpad_is_win) {
     data_deps += [ "../handler:crashpad_handler_console" ]
   }

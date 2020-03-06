@@ -19,8 +19,6 @@ config("compat_config") {
 
   if (crashpad_is_mac) {
     include_dirs += [ "mac" ]
-  } else {
-    include_dirs += [ "non_mac" ]
   }
 
   if (crashpad_is_linux || crashpad_is_android) {
@@ -66,13 +64,6 @@ compat_target("compat") {
       "mac/mach-o/loader.h",
       "mac/mach/mach.h",
       "mac/sys/resource.h",
-    ]
-  } else {
-    sources += [
-      "non_mac/mach-o/loader.h",
-      "non_mac/mach/mach.h",
-      "non_mac/mach/machine.h",
-      "non_mac/mach/vm_prot.h",
     ]
   }
 

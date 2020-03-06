@@ -16,6 +16,7 @@
 #define CRASHPAD_CLIENT_CRASHPAD_CLIENT_H_
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -384,7 +385,36 @@ class CrashpadClient {
   //! \param[in] handler The custom crash signal handler to install.
   static void SetFirstChanceExceptionHandler(FirstChanceHandler handler);
 
+  //! \brief Configures a set of signals that shouldn't have Crashpad signal
+  //!     handlers installed.
+  //!
+  //! This method should be called before calling StartHandler(),
+  //! SetHandlerSocket(), or other methods that install Crashpad signal
+  //! handlers.
+  //!
+  //! \param[in] unhandled_signals The set of unhandled signals
+  void SetUnhandledSignals(const std::set<int>& unhandled_signals);
 #endif  // OS_LINUX || OS_ANDROID || DOXYGEN
+
+#if defined(OS_IOS) || DOXYGEN
+  //! \brief Configures the process to direct its crashes to the iOS in-process
+  //! Crashpad handler.
+  //!
+  //! This method is only defined on iOS.
+  //!
+  //! \return `true` on success, `false` on failure with a message logged.
+  //!
+  //! TODO(justincohen): This method will need to take database, metrics_dir,
+  //! url and annotations eventually.
+  bool StartCrashpadInProcessHandler();
+
+  // TODO(justincohen): This method is purely for bringing up iOS interfaces.
+  //! \brief Requests that the handler capture a dump even though there hasn't
+  //!     been a crash.
+  //!
+  //! A handler must have already been installed before calling this method.
+  static void DumpWithoutCrash();
+#endif
 
 #if defined(OS_MACOSX) || DOXYGEN
   //! \brief Sets the process’ crash handler to a Mach service registered with

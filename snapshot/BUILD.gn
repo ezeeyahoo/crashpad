@@ -232,6 +232,8 @@ static_library("snapshot") {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
     libs = [ "powrprof.lib" ]
   }
+
+  configs += [ "..:disable_ubsan" ]
 }
 
 fuzzer_test("elf_image_reader_fuzzer") {

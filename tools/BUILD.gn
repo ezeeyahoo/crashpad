@@ -27,10 +27,9 @@ source_set("tool_support") {
   ]
 }
 
+
 crashpad_executable("crashpad_database_util") {
-  sources = [
-    "crashpad_database_util.cc",
-  ]
+  sources = [ "crashpad_database_util.cc" ]
 
   deps = [
     ":tool_support",
@@ -43,11 +42,9 @@ crashpad_executable("crashpad_database_util") {
 }
 
 crashpad_executable("crashpad_http_upload") {
-  sources = [
-    "crashpad_http_upload.cc",
-  ]
+  sources = [ "crashpad_http_upload.cc" ]
 
-  deps = [
+   deps = [
     ":tool_support",
     "../build:default_exe_manifest_win",
     "../compat",
@@ -56,38 +53,37 @@ crashpad_executable("crashpad_http_upload") {
   ]
 }
 
-crashpad_executable("generate_dump") {
-  sources = [
-    "generate_dump.cc",
-  ]
+if (!crashpad_is_fuchsia) {
+  crashpad_executable("generate_dump") {
+    sources = [ "generate_dump.cc" ]
 
-  deps = [
-    ":tool_support",
-    "../build:default_exe_manifest_win",
-    "../compat",
-    "../minidump",
-    "../snapshot",
-    "../third_party/mini_chromium:base",
-    "../util",
-  ]
-
-  if (crashpad_is_mac) {
-    # This would be better as a config so that it could be shared with
-    # exception_port_tool, but configs can’t alter “inputs”.
-    # https://crbug.com/781858.
-    inputs = [
-      "mac/sectaskaccess_info.plist",
+    deps = [
+      ":tool_support",
+      "../build:default_exe_manifest_win",
+      "../compat",
+      "../minidump",
+      "../snapshot",
+      "../third_party/mini_chromium:base",
+      "../util",
     ]
-    ldflags = [
-      "-sectcreate",
-      "__TEXT",
-      "__info_plist",
-      rebase_path(inputs[0], root_build_dir),
-    ]
-  }
+    
+    if (crashpad_is_mac) {
+      # This would be better as a config so that it could be shared with
+      # exception_port_tool, but configs can’t alter “inputs”.
+      # https://crbug.com/781858.
+      inputs = [ "mac/sectaskaccess_info.plist" ]
+      ldflags = [
+        "-sectcreate",
+        "__TEXT",
+        "__info_plist",
+        rebase_path(inputs[0], root_build_dir),
+      ]
+    }
 
-  if (crashpad_is_win) {
-    cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
+    if (crashpad_is_win) {
+      cflags =
+          [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
+    }
   }
 }
 

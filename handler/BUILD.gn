@@ -127,10 +127,9 @@ source_set("handler_test") {
   }
 }
 
+
 crashpad_executable("crashpad_handler") {
-  sources = [
-    "main.cc",
-  ]
+  sources = [ "main.cc" ]
 
   deps = [
     ":handler",
@@ -191,9 +190,7 @@ if (crashpad_is_android) {
 crashpad_executable("crashpad_handler_test_extended_handler") {
   testonly = true
 
-  sources = [
-    "crashpad_handler_test_extended_handler.cc",
-  ]
+  sources = [ "crashpad_handler_test_extended_handler.cc" ]
 
   deps = [
     ":handler",

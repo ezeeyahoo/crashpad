@@ -487,6 +487,8 @@ if (crashpad_use_boringssl_for_http_transport_socket) {
     ]
     data = outputs
   }
+
+  configs += [ "..:disable_ubsan" ]
 }
 
 if (!crashpad_is_android) {
